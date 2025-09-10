@@ -103,7 +103,7 @@ def main():
 
     version = args.version
     dtype = args.dtype
-    output = args.output or f"/mnt/bigcreek_nfs_share/swot/{version}/"
+    output = args.output or os.path.abspath(os.path.join(os.path.dirname(__file__), '../data/external'))
     num_workers = min(max(1, args.num_workers), 8)  # Ensure between 1 and 8
     log_level = getattr(logging, args.log_level.upper(), logging.INFO)
 
