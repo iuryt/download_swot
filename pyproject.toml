@@ -38,7 +38,7 @@ download_swot = { path = ".", editable = true }
 
 
 [tool.pixi.tasks]
-download_swot = "python download_swot/download_swot.py $@"
+download_swot = "python download_swot/download_swot.py"
 test = "pytest --cov=download_swot tests"
 
 
