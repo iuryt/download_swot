@@ -1078,7 +1078,7 @@ packages:
 - pypi: ./
   name: download-swot
   version: 0.1.0
-  sha256: cf91e3840bcff554fbd8d86ab74dd877125861cec209ab892415f29da31cc266
+  sha256: 30093d779a7a791f73abd3e7a516dda5609c6d26074138da80df3bab3e6c8678
   requires_dist:
   - xarray>=2025.9.0,<2026
   - tqdm>=4.67.1,<5
