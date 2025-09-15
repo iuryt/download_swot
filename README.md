@@ -2,16 +2,18 @@
 
 ## Overview
 
-`download_swot` is a Python tool for downloading SWOT (Surface Water and Ocean Topography) Level 3 data products from the AVISO FTP server. It automates authentication, scanning, and parallel downloading of large datasets, organizing them into a local directory structure for further analysis.
+`download_swot` is a Python tool for downloading SWOT (Surface Water and Ocean Topography) Level 3 data products from the AVISO FTP or HTTPS servers. It automates authentication, scanning, and parallel downloading of large datasets, organizing them into a local directory structure for further analysis.
 
 ## Features
 
 - Authenticates securely using `.netrc` credentials.
-- Scans the remote FTP directory for available SWOT data files.
+- Scans the remote FTP or HTTPS directory for available SWOT data files.
 - Downloads files in parallel using a thread pool for efficiency (up to 8 threads).
-- Verifies file integrity using `xarray`.
+- Verifies file integrity by comparing file size before download.
 - Organizes downloaded data into `calval` and `science` subfolders.
 - Flexible CLI for filtering by pass ID and cycle.
+- Supports both FTP and HTTPS protocols (`--protocol`).
+- Skips already downloaded and valid files by default, with `--overwrite` to force re-download.
 
 ## Requirements
 
@@ -32,14 +34,19 @@
     pixi install
     ```
 
-3. Ensure your `~/.netrc` file contains credentials for `ftp-access.aviso.altimetry.fr`:
-    ```
-    machine ftp-access.aviso.altimetry.fr
-      login <your_username>
-      password <your_password>
-    ```
+3. Ensure your `~/.netrc` file contains credentials for both `ftp-access.aviso.altimetry.fr` **and** `tds-odatis.aviso.altimetry.fr` (HTTPS):
+        ```
+        machine ftp-access.aviso.altimetry.fr
+            login <your_username>
+            password <your_password>
+
+        machine tds-odatis.aviso.altimetry.fr
+            login <your_username>
+            password <your_password>
+        ```
 
 ## Usage
+
 
 To download SWOT data, run:
 
@@ -49,14 +56,23 @@ pixi run download_swot
 
 ### CLI Options
 
+- `--protocol`: Choose `ftp` or `https` (default: `ftp`).
+- `--dtype`: Choose data type, e.g. `Basic` or `Unsmoothed`.
 - `--pass-id`: Specify one or more pass IDs (PPP) to download (space separated).
 - `--cycle`: Specify one or more cycles (CCC) to download (space separated).
 - `--cycle-min` and `--cycle-max`: Specify a range of cycles to download.
 - `--output`: Set a custom output directory (default: `./data/external`).
 - `--num-workers`: Set the number of parallel downloads (default: 4, max: 8).
-- `--log-level`: Set the logging level (default: INFO).
+- `--overwrite`: Force re-download even if file exists and is valid.
 
 ### Example
+
+
+To download all cycles for pass ID 214, version Unsmoothed, using HTTPS, to a custom directory:
+
+```bash
+nohup pixi run download_swot --protocol https --dtype Unsmoothed --pass-id 214 --output /tmp/ > swot_download.log 2>&1 &
+```
 
 To download only files for pass IDs 214 and 533, and cycles 14 to 16:
 
@@ -64,7 +80,7 @@ To download only files for pass IDs 214 and 533, and cycles 14 to 16:
 pixi run download_swot --pass-id 214 533 --cycle-min 14 --cycle-max 16
 ```
 
-Downloaded files will be organized under `./data/external/<dtype>/` by default.
+Downloaded files will be organized under `./data/external/<dtype>/` by default (or your custom output directory).
 
 ### Python API Example
 
@@ -78,20 +94,42 @@ for remote, local in files:
 
 ## Project Structure
 
+
 ```
 download_swot/
     __init__.py
     download_swot.py
+    downloader.py
+    listing.py
+    utils/
+        __init__.py
+        credentials.py
+        normalize.py
+        orbit.py
 data/
     external/
     processed/
+scripts/
+    benchmark_download.py
 tests/
+    __init__.py
+    test_cli.py
     test_download_swot.py
+    test_listing.py
+    test_listing_ftp.py
+pyproject.toml
+pixi.lock
+README.md
+LICENSE
 ```
 
-- `download_swot/download_swot.py`: Main script for downloading SWOT data.
+- `download_swot/download_swot.py`: Main CLI script for downloading SWOT data.
+- `download_swot/downloader.py`, `listing.py`: Download and listing logic.
+- `download_swot/utils/`: Utility modules (credentials, orbit, etc).
+- `scripts/`: Extra scripts (e.g., benchmarks).
 - `data/`: Place for storing raw and processed data.
 - `tests/`: Unit tests for the package.
+- `pyproject.toml`: Project and dependency configuration.
 
 ## Contribution
 

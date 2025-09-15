@@ -1,7 +1,7 @@
 
 [project]
 name = "download_swot"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
 	{name = "iury simoes-sousa", email = "iuryt@pm.me"}
 ]
@@ -38,7 +38,7 @@ download_swot = { path = ".", editable = true }
 
 
 [tool.pixi.tasks]
-download_swot = "python download_swot/download_swot.py"
+download_swot = "python -m download_swot.download_swot"
 test = "pytest --cov=download_swot tests"
 
 
@@ -48,6 +48,7 @@ tqdm = ">=4.67.1,<5"
 ipykernel = ">=6.30.1,<7"
 netcdf4 = ">=1.7.2,<2"
 h5netcdf = ">=1.6.4,<2"
+requests = ">=2.32.5,<3"
 
 [tool.pixi.feature.test.dependencies]
 pytest = ">=7.0"
