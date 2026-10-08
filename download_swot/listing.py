@@ -23,12 +23,21 @@ def list_https_files(version, dtype, auth, pass_ids=None, cycle_list=None, cycle
     resp.raise_for_status()
     root = ET.fromstring(resp.content)
     ns = {'cat': 'http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0'}
-    cycles = [e.attrib['name'] for e in root.findall('.//cat:catalogRef', ns) if e.attrib['name'].startswith('cycle_')]
+    refs = [e.attrib['name'] for e in root.findall('.//cat:catalogRef', ns)]
+    # v2 lists cycle_XXX directly under dtype; v3 adds a stream level
+    # (forward/, reproc/) above them. Collect cycles as paths relative to dtype.
+    cycles = [r for r in refs if r.startswith('cycle_')]
+    for stream in (r for r in refs if not r.startswith('cycle_')):
+        sresp = requests.get(f"{CATALOG_BASE}/{version}/{dtype}/{stream}/catalog.xml", auth=auth)
+        sresp.raise_for_status()
+        sroot = ET.fromstring(sresp.content)
+        cycles += [f"{stream}/{e.attrib['name']}" for e in sroot.findall('.//cat:catalogRef', ns)
+                   if e.attrib['name'].startswith('cycle_')]
     # Filtering cycles
     filtered_cycles = []
     for c in cycles:
         try:
-            cycle_num = int(c.split('_')[1])
+            cycle_num = int(c.rsplit('cycle_', 1)[1])
             if cycle_list and cycle_num not in cycle_list:
                 continue
             if cycle_min is not None and cycle_num < cycle_min:
@@ -64,10 +73,20 @@ def list_ftp_files(version, dtype, username, password, pass_ids=None, cycle_list
     with ftplib.FTP(FTP_HOST) as ftp:
         ftp.login(username, password)
         ftp.cwd(base_path)
-        cycles = ftp.nlst()
-        for d in cycles:
+        entries = ftp.nlst()
+        # v2 lists cycle_XXX directly under dtype; v3 adds a stream level
+        # (forward/, reproc/) above them. Keep (path relative to dtype, cycle name).
+        cycles = [(e, e) for e in entries if e.startswith("cycle_")]
+        for stream in (e for e in entries if not e.startswith("cycle_")):
             try:
-                cycle = int(d.split("_")[1])
+                ftp.cwd(f"{base_path}/{stream}")
+                cycles += [(f"{stream}/{c}", c) for c in ftp.nlst() if c.startswith("cycle_")]
+                ftp.cwd(base_path)
+            except Exception as e:
+                warnings.warn(f"Skipping folder {stream}: {e}")
+        for d, cname in cycles:
+            try:
+                cycle = int(cname.split("_")[1])
                 if cycle_list and cycle not in cycle_list:
                     continue
                 if cycle_min is not None and cycle < cycle_min:
@@ -80,8 +99,13 @@ def list_ftp_files(version, dtype, username, password, pass_ids=None, cycle_list
                     pass_id = fname.split("_")[-4]
                     if pass_ids and pass_id not in pass_ids:
                         continue
-                    all_files.append((f"{base_path}/{d}/{fname}", d, fname))
+                    all_files.append((f"{base_path}/{d}/{fname}", cname, fname))
                 ftp.cwd(base_path)
             except Exception as e:
                 warnings.warn(f"Skipping folder {d}: {e}")
+    seen = set()
+    for _, _, fname in all_files:
+        if fname in seen:
+            warnings.warn(f"{fname} is listed in more than one stream; the last copy wins locally")
+        seen.add(fname)
     return all_files
