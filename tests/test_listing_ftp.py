@@ -156,3 +156,33 @@ def test_list_ftp_files_cycle_list_precedence(monkeypatch):
     assert all('cycle_002' in r[1] for r in result)
     assert len(result) == 1
     assert all(r[2].endswith('.nc') for r in result)
+
+
+# v3_0 adds a stream level (forward/, reproc/) between dtype and cycle_XXX
+def test_list_ftp_files_v3_stream_layout(monkeypatch):
+    base = '/swot_products/l3_karin_nadir/l3_lr_ssh/v3_0/Basic'
+    tree = {
+        base: ['forward', 'reproc'],
+        f'{base}/forward': ['cycle_040'],
+        f'{base}/reproc': ['cycle_001', 'cycle_474'],
+        f'{base}/forward/cycle_040': ['SWOT_L3_LR_SSH_Basic_040_002_20260101T000000_20260101T005959_v3.0.nc'],
+        f'{base}/reproc/cycle_001': ['SWOT_L3_LR_SSH_Basic_001_002_20230726T000000_20230726T005959_v3.0.nc'],
+        f'{base}/reproc/cycle_474': ['SWOT_L3_LR_SSH_Basic_474_002_20230401T000000_20230401T005959_v3.0.nc'],
+    }
+
+    class FakeFTP:
+        def __init__(self, *a, **kw): self.path = '/'
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def login(self, *a, **kw): pass
+        def cwd(self, path): self.path = path
+        def nlst(self): return tree[self.path]
+
+    monkeypatch.setattr('download_swot.listing.ftplib.FTP', FakeFTP)
+    result = list_ftp_files(version='v3_0', dtype='Basic', username='u', password='p',
+                            cycle_min=1, cycle_max=100)
+    assert sorted(r[1] for r in result) == ['cycle_001', 'cycle_040']
+    assert {r[0] for r in result} == {
+        f'{base}/forward/cycle_040/{tree[f"{base}/forward/cycle_040"][0]}',
+        f'{base}/reproc/cycle_001/{tree[f"{base}/reproc/cycle_001"][0]}',
+    }

@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 def main():
     parser = argparse.ArgumentParser(description="Download SWOT products from FTP or HTTPS.")
     parser.add_argument('--protocol', choices=['ftp', 'https'], default='ftp', help='Download protocol (ftp or https)')
-    parser.add_argument('--version', type=str, default="v2_0_1", help='SWOT data version (default: v2_0_1)')
+    parser.add_argument('--version', type=str, default="v3_0", help='SWOT data version (default: v3_0)')
     parser.add_argument('--dtype', type=str, default="Basic", help='Data type (default: Basic)')
     parser.add_argument('--output', type=str, default=None, help='Output directory (default: ../data/external)')
     parser.add_argument('--num-workers', type=int, default=4, help='Number of parallel downloads (default: 4, max: 8)')
@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--cycle-min', type=int, default=None, help='Minimum cycle number to download')
     parser.add_argument('--cycle-max', type=int, default=None, help='Maximum cycle number to download')
     parser.add_argument('--overwrite', action='store_true', help='Overwrite files even if they exist and are valid')
+    parser.add_argument('--list-only', action='store_true', help='List matching files and exit without downloading')
     args = parser.parse_args()
 
     version = args.version
@@ -58,6 +59,10 @@ def main():
             print("No files to download.")
             return
         print(f"Total files to download: {len(files)}")
+        if args.list_only:
+            for remote_path, _, _ in files:
+                print(remote_path)
+            return
         total_files = len(files)
         def ftp_task(args_with_idx):
             idx, (remote_path, cycle, fname) = args_with_idx
@@ -82,16 +87,18 @@ def main():
             print("No files to download.")
             return
         print(f"Total files to download: {len(urls)}")
+        if args.list_only:
+            print("\n".join(urls))
+            return
         total_files = len(urls)
         def https_task(args_with_idx):
             idx, url = args_with_idx
             fname = os.path.basename(url)
             # Try to extract cycle from URL: .../cycle_XXX/filename
+            # (v3 has a stream level, forward/ or reproc/, before the cycle dir)
             try:
-                parts = url.split('/')
-                idx_cycle = parts.index('l3_lr_ssh')
-                cycle = parts[idx_cycle+3].split('_')[-1]
-            except Exception:
+                cycle = next(p for p in url.split('/') if p.startswith('cycle_')).split('_')[-1]
+            except StopIteration:
                 cycle = 'unknown'
             # Ensure cycle is int for get_orbit_subfolder
             cycle_int = int(cycle)

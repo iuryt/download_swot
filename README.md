@@ -57,6 +57,7 @@ pixi run download_swot
 ### CLI Options
 
 - `--protocol`: Choose `ftp` or `https` (default: `ftp`).
+- `--version`: Product version directory, e.g. `v3_0` (default) or `v2_0_1`. v3_0 stores cycles under `forward/` and `reproc/`; both are listed.
 - `--dtype`: Choose data type, e.g. `Basic` or `Unsmoothed`.
 - `--pass-id`: Specify one or more pass IDs (PPP) to download (space separated).
 - `--cycle`: Specify one or more cycles (CCC) to download (space separated).
@@ -64,6 +65,7 @@ pixi run download_swot
 - `--output`: Set a custom output directory (default: `./data/external`).
 - `--num-workers`: Set the number of parallel downloads (default: 4, max: 8).
 - `--overwrite`: Force re-download even if file exists and is valid.
+- `--list-only`: Print the matching remote files and exit.
 
 ### Example
 
